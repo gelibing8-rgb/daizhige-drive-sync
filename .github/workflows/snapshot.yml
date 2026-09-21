@@ -1,0 +1,134 @@
+name: Daizhige Snapshot
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 18 * * 0"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daizhige-snapshot
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+
+    steps:
+      - name: Resolve upstream
+        id: upstream
+        shell: bash
+        run: |
+          set -euo pipefail
+          SHA="$(curl -fsSL \
+            -H 'Accept: application/vnd.github+json' \
+            https://api.github.com/repos/daizhige-org/daizhigev20/commits/data \
+            | jq -r '.sha')"
+          test -n "$SHA"
+          test "$SHA" != "null"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "UPSTREAM_SHA=$SHA" >> "$GITHUB_ENV"
+
+      - name: Check snapshot
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          TAG="snapshot-${UPSTREAM_SHA}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          if gh release view "$TAG" \
+              --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download data branch
+        if: steps.check.outputs.exists != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fL \
+            --retry 5 \
+            --retry-delay 10 \
+            https://codeload.github.com/daizhige-org/daizhigev20/tar.gz/refs/heads/data \
+            -o daizhigev20-data.tar.gz
+
+          test -s daizhigev20-data.tar.gz
+          sha256sum daizhigev20-data.tar.gz \
+            > daizhigev20-data.tar.gz.sha256
+
+      - name: Build manifest
+        if: steps.check.outputs.exists != 'true'
+        shell: bash
+        run: |
+          SIZE="$(stat -c%s daizhigev20-data.tar.gz)"
+          HASH="$(cut -d' ' -f1 daizhigev20-data.tar.gz.sha256)"
+          NOW="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+          jq -n \
+            --arg source "daizhige-org/daizhigev20" \
+            --arg branch "data" \
+            --arg commit "$UPSTREAM_SHA" \
+            --arg created_at "$NOW" \
+            --arg sha256 "$HASH" \
+            --argjson bytes "$SIZE" \
+            '{
+              source:$source,
+              branch:$branch,
+              commit:$commit,
+              created_at:$created_at,
+              archive_bytes:$bytes,
+              sha256:$sha256
+            }' > manifest.json
+
+      - name: Split archive below GitHub release asset limit
+        if: steps.check.outputs.exists != 'true'
+        shell: bash
+        run: |
+          split \
+            -b 1900m \
+            -d \
+            -a 3 \
+            daizhigev20-data.tar.gz \
+            daizhigev20-data.tar.gz.part-
+
+          ls -lh daizhigev20-data.tar.gz.part-*
+
+      - name: Publish snapshot
+        if: steps.check.outputs.exists != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          TAG="${{ steps.check.outputs.tag }}"
+
+          gh release create "$TAG" \
+            daizhigev20-data.tar.gz.part-* \
+            daizhigev20-data.tar.gz.sha256 \
+            manifest.json \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "殆知阁 data ${UPSTREAM_SHA:0:12}" \
+            --notes "自动生成自 daizhige-org/daizhigev20 data 分支。完整压缩包按小于 2GiB 分卷保存。"
+
+      - name: Keep latest two snapshots
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release list \
+            --repo "$GITHUB_REPOSITORY" \
+            --limit 100 \
+            --json tagName,createdAt \
+            --jq 'sort_by(.createdAt)|reverse|.[2:]|.[].tagName' \
+          | while read -r TAG; do
+              [ -z "$TAG" ] && continue
+              gh release delete "$TAG" \
+                --repo "$GITHUB_REPOSITORY" \
+                --yes \
+                --cleanup-tag || true
+            done
