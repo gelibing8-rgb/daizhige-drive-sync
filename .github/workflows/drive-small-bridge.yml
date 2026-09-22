@@ -52,20 +52,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
-          cat daizhigev20-data.tar.gz.part-* \
-            > daizhigev20-data.tar.gz
-
+          cat daizhigev20-data.tar.gz.part-* > daizhigev20-data.tar.gz
           sha256sum -c daizhigev20-data.tar.gz.sha256
-
-          echo "Verified:"
           ls -lh daizhigev20-data.tar.gz
 
       - name: Split into Drive-safe chunks
         shell: bash
         run: |
           set -euo pipefail
-
           split \
             -b 90m \
             -d \
@@ -73,64 +67,252 @@ jobs:
             daizhigev20-data.tar.gz \
             daizhigev20-data.tar.gz.chunk-
 
-          sha256sum daizhigev20-data.tar.gz.chunk-* \
-            > chunks.sha256
-
+          sha256sum daizhigev20-data.tar.gz.chunk-* > chunks.sha256
+          test "$(ls daizhigev20-data.tar.gz.chunk-* | wc -l)" -eq 26
           ls -lh daizhigev20-data.tar.gz.chunk-*
 
-      - name: Install artifact client
-        shell: bash
-        run: |
-          npm install --no-save @actions/artifact
+      - name: Upload chunk 000
+        uses: actions/upload-artifact@v4
+        with:
+          name: daizhige-chunk-000
+          path: daizhigev20-data.tar.gz.chunk-000
+          compression-level: 0
+          retention-days: 3
+          if-no-files-found: error
 
-      - name: Upload each chunk separately
-        shell: bash
-        run: |
-          cat > upload.mjs <<'NODE'
-          import fs from 'fs';
-          import path from 'path';
-          import { DefaultArtifactClient } from '@actions/artifact';
+      - name: Upload chunk 001
+        uses: actions/upload-artifact@v4
+        with:
+          name: daizhige-chunk-001
+          path: daizhigev20-data.tar.gz.chunk-001
+          compression-level: 0
+          retention-days: 3
+          if-no-files-found: error
 
-          const client = new DefaultArtifactClient();
-          const cwd = process.cwd();
+      - name: Upload chunk 002
+        uses: actions/upload-artifact@v4
+        with:
+          name: daizhige-chunk-002
+          path: daizhigev20-data.tar.gz.chunk-002
+          compression-level: 0
+          retention-days: 3
+          if-no-files-found: error
 
-          const chunks = fs.readdirSync(cwd)
-            .filter(x => x.startsWith('daizhigev20-data.tar.gz.chunk-'))
-            .sort();
+      - name: Upload chunk 003
+        uses: actions/upload-artifact@v4
+        with:
+          name: daizhige-chunk-003
+          path: daizhigev20-data.tar.gz.chunk-003
+          compression-level: 0
+          retention-days: 3
+          if-no-files-found: error
 
-          for (const file of chunks) {
-            const suffix = file.split('chunk-')[1];
-            const name = `daizhige-chunk-${suffix}`;
+      - name: Upload chunk 004
+        uses: actions/upload-artifact@v4
+        with:
+          name: daizhige-chunk-004
+          path: daizhigev20-data.tar.gz.chunk-004
+          compression-level: 0
+          retention-days: 3
+          if-no-files-found: error
 
-            console.log(`Uploading ${name}: ${file}`);
+      - name: Upload chunk 005
+        uses: actions/upload-artifact@v4
+        with:
+          name: daizhige-chunk-005
+          path: daizhigev20-data.tar.gz.chunk-005
+          compression-level: 0
+          retention-days: 3
+          if-no-files-found: error
 
-            await client.uploadArtifact(
-              name,
-              [path.join(cwd, file)],
-              cwd,
-              {
-                retentionDays: 3,
-                compressionLevel: 0
-              }
-            );
-          }
+      - name: Upload chunk 006
+        uses: actions/upload-artifact@v4
+        with:
+          name: daizhige-chunk-006
+          path: daizhigev20-data.tar.gz.chunk-006
+          compression-level: 0
+          retention-days: 3
+          if-no-files-found: error
 
-          await client.uploadArtifact(
-            'daizhige-chunk-metadata',
-            [
-              path.join(cwd, 'manifest.json'),
-              path.join(cwd, 'daizhigev20-data.tar.gz.sha256'),
-              path.join(cwd, 'chunks.sha256')
-            ],
-            cwd,
-            {
-              retentionDays: 3,
-              compressionLevel: 0
-            }
-          );
+      - name: Upload chunk 007
+        uses: actions/upload-artifact@v4
+        with:
+          name: daizhige-chunk-007
+          path: daizhigev20-data.tar.gz.chunk-007
+          compression-level: 0
+          retention-days: 3
+          if-no-files-found: error
 
-          console.log(`DONE chunks=${chunks.length}`);
-          NODE
+      - name: Upload chunk 008
+        uses: actions/upload-artifact@v4
+        with:
+          name: daizhige-chunk-008
+          path: daizhigev20-data.tar.gz.chunk-008
+          compression-level: 0
+          retention-days: 3
+          if-no-files-found: error
 
-          node ./upload.mjs
+      - name: Upload chunk 009
+        uses: actions/upload-artifact@v4
+        with:
+          name: daizhige-chunk-009
+          path: daizhigev20-data.tar.gz.chunk-009
+          compression-level: 0
+          retention-days: 3
+          if-no-files-found: error
 
+      - name: Upload chunk 010
+        uses: actions/upload-artifact@v4
+        with:
+          name: daizhige-chunk-010
+          path: daizhigev20-data.tar.gz.chunk-010
+          compression-level: 0
+          retention-days: 3
+          if-no-files-found: error
+
+      - name: Upload chunk 011
+        uses: actions/upload-artifact@v4
+        with:
+          name: daizhige-chunk-011
+          path: daizhigev20-data.tar.gz.chunk-011
+          compression-level: 0
+          retention-days: 3
+          if-no-files-found: error
+
+      - name: Upload chunk 012
+        uses: actions/upload-artifact@v4
+        with:
+          name: daizhige-chunk-012
+          path: daizhigev20-data.tar.gz.chunk-012
+          compression-level: 0
+          retention-days: 3
+          if-no-files-found: error
+
+      - name: Upload chunk 013
+        uses: actions/upload-artifact@v4
+        with:
+          name: daizhige-chunk-013
+          path: daizhigev20-data.tar.gz.chunk-013
+          compression-level: 0
+          retention-days: 3
+          if-no-files-found: error
+
+      - name: Upload chunk 014
+        uses: actions/upload-artifact@v4
+        with:
+          name: daizhige-chunk-014
+          path: daizhigev20-data.tar.gz.chunk-014
+          compression-level: 0
+          retention-days: 3
+          if-no-files-found: error
+
+      - name: Upload chunk 015
+        uses: actions/upload-artifact@v4
+        with:
+          name: daizhige-chunk-015
+          path: daizhigev20-data.tar.gz.chunk-015
+          compression-level: 0
+          retention-days: 3
+          if-no-files-found: error
+
+      - name: Upload chunk 016
+        uses: actions/upload-artifact@v4
+        with:
+          name: daizhige-chunk-016
+          path: daizhigev20-data.tar.gz.chunk-016
+          compression-level: 0
+          retention-days: 3
+          if-no-files-found: error
+
+      - name: Upload chunk 017
+        uses: actions/upload-artifact@v4
+        with:
+          name: daizhige-chunk-017
+          path: daizhigev20-data.tar.gz.chunk-017
+          compression-level: 0
+          retention-days: 3
+          if-no-files-found: error
+
+      - name: Upload chunk 018
+        uses: actions/upload-artifact@v4
+        with:
+          name: daizhige-chunk-018
+          path: daizhigev20-data.tar.gz.chunk-018
+          compression-level: 0
+          retention-days: 3
+          if-no-files-found: error
+
+      - name: Upload chunk 019
+        uses: actions/upload-artifact@v4
+        with:
+          name: daizhige-chunk-019
+          path: daizhigev20-data.tar.gz.chunk-019
+          compression-level: 0
+          retention-days: 3
+          if-no-files-found: error
+
+      - name: Upload chunk 020
+        uses: actions/upload-artifact@v4
+        with:
+          name: daizhige-chunk-020
+          path: daizhigev20-data.tar.gz.chunk-020
+          compression-level: 0
+          retention-days: 3
+          if-no-files-found: error
+
+      - name: Upload chunk 021
+        uses: actions/upload-artifact@v4
+        with:
+          name: daizhige-chunk-021
+          path: daizhigev20-data.tar.gz.chunk-021
+          compression-level: 0
+          retention-days: 3
+          if-no-files-found: error
+
+      - name: Upload chunk 022
+        uses: actions/upload-artifact@v4
+        with:
+          name: daizhige-chunk-022
+          path: daizhigev20-data.tar.gz.chunk-022
+          compression-level: 0
+          retention-days: 3
+          if-no-files-found: error
+
+      - name: Upload chunk 023
+        uses: actions/upload-artifact@v4
+        with:
+          name: daizhige-chunk-023
+          path: daizhigev20-data.tar.gz.chunk-023
+          compression-level: 0
+          retention-days: 3
+          if-no-files-found: error
+
+      - name: Upload chunk 024
+        uses: actions/upload-artifact@v4
+        with:
+          name: daizhige-chunk-024
+          path: daizhigev20-data.tar.gz.chunk-024
+          compression-level: 0
+          retention-days: 3
+          if-no-files-found: error
+
+      - name: Upload chunk 025
+        uses: actions/upload-artifact@v4
+        with:
+          name: daizhige-chunk-025
+          path: daizhigev20-data.tar.gz.chunk-025
+          compression-level: 0
+          retention-days: 3
+          if-no-files-found: error
+
+      - name: Upload metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: daizhige-chunk-metadata
+          path: |
+            manifest.json
+            daizhigev20-data.tar.gz.sha256
+            chunks.sha256
+          compression-level: 0
+          retention-days: 3
+          if-no-files-found: error
