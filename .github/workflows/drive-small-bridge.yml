@@ -1,0 +1,136 @@
+name: Drive Small Chunk Bridge
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bridge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Find latest snapshot
+        id: latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="$(gh release list \
+            --repo "$GITHUB_REPOSITORY" \
+            --limit 1 \
+            --json tagName \
+            --jq '.[0].tagName')"
+          test -n "$TAG"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Snapshot: $TAG"
+
+      - name: Download release in GitHub cloud
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.latest.outputs.tag }}"
+
+          gh release download "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern 'daizhigev20-data.tar.gz.part-*'
+
+          gh release download "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern 'daizhigev20-data.tar.gz.sha256'
+
+          gh release download "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern 'manifest.json'
+
+      - name: Rebuild and verify archive
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cat daizhigev20-data.tar.gz.part-* \
+            > daizhigev20-data.tar.gz
+
+          sha256sum -c daizhigev20-data.tar.gz.sha256
+
+          echo "Verified:"
+          ls -lh daizhigev20-data.tar.gz
+
+      - name: Split into Drive-safe chunks
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          split \
+            -b 90m \
+            -d \
+            -a 3 \
+            daizhigev20-data.tar.gz \
+            daizhigev20-data.tar.gz.chunk-
+
+          sha256sum daizhigev20-data.tar.gz.chunk-* \
+            > chunks.sha256
+
+          ls -lh daizhigev20-data.tar.gz.chunk-*
+
+      - name: Install artifact client
+        shell: bash
+        run: |
+          npm install --no-save @actions/artifact
+
+      - name: Upload each chunk separately
+        shell: bash
+        run: |
+          cat > /tmp/upload.mjs <<'NODE'
+          import fs from 'fs';
+          import path from 'path';
+          import { DefaultArtifactClient } from '@actions/artifact';
+
+          const client = new DefaultArtifactClient();
+          const cwd = process.cwd();
+
+          const chunks = fs.readdirSync(cwd)
+            .filter(x => x.startsWith('daizhigev20-data.tar.gz.chunk-'))
+            .sort();
+
+          for (const file of chunks) {
+            const suffix = file.split('chunk-')[1];
+            const name = `daizhige-chunk-${suffix}`;
+
+            console.log(`Uploading ${name}: ${file}`);
+
+            await client.uploadArtifact(
+              name,
+              [path.join(cwd, file)],
+              cwd,
+              {
+                retentionDays: 3,
+                compressionLevel: 0
+              }
+            );
+          }
+
+          await client.uploadArtifact(
+            'daizhige-chunk-metadata',
+            [
+              path.join(cwd, 'manifest.json'),
+              path.join(cwd, 'daizhigev20-data.tar.gz.sha256'),
+              path.join(cwd, 'chunks.sha256')
+            ],
+            cwd,
+            {
+              retentionDays: 3,
+              compressionLevel: 0
+            }
+          );
+
+          console.log(`DONE chunks=${chunks.length}`);
+          NODE
+
+          node /tmp/upload.mjs
+
