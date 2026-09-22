@@ -86,7 +86,7 @@ jobs:
       - name: Upload each chunk separately
         shell: bash
         run: |
-          cat > /tmp/upload.mjs <<'NODE'
+          cat > upload.mjs <<'NODE'
           import fs from 'fs';
           import path from 'path';
           import { DefaultArtifactClient } from '@actions/artifact';
@@ -132,5 +132,5 @@ jobs:
           console.log(`DONE chunks=${chunks.length}`);
           NODE
 
-          node /tmp/upload.mjs
+          node ./upload.mjs
 
