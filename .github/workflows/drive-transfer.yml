@@ -1,0 +1,75 @@
+name: Drive Transfer Bridge
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bridge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Find latest snapshot
+        id: latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="$(gh release list \
+            --repo "$GITHUB_REPOSITORY" \
+            --limit 1 \
+            --json tagName \
+            --jq '.[0].tagName')"
+          test -n "$TAG"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Latest snapshot: $TAG"
+
+      - name: Download snapshot parts in GitHub cloud
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download "${{ steps.latest.outputs.tag }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern "daizhigev20-data.tar.gz.part-000"
+
+          gh release download "${{ steps.latest.outputs.tag }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern "daizhigev20-data.tar.gz.part-001"
+
+          gh release download "${{ steps.latest.outputs.tag }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern "daizhigev20-data.tar.gz.sha256"
+
+          gh release download "${{ steps.latest.outputs.tag }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern "manifest.json"
+
+          ls -lh
+
+      - name: Upload part 000 as bridge artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: daizhige-part-000
+          path: daizhigev20-data.tar.gz.part-000
+          compression-level: 0
+          retention-days: 3
+
+      - name: Upload part 001 as bridge artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: daizhige-part-001
+          path: daizhigev20-data.tar.gz.part-001
+          compression-level: 0
+          retention-days: 3
+
+      - name: Upload metadata as bridge artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: daizhige-metadata
+          path: |
+            daizhigev20-data.tar.gz.sha256
+            manifest.json
+          compression-level: 0
+          retention-days: 3
